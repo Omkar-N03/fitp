@@ -1,0 +1,6 @@
+{
+  "name": "GymCoach AI",
+  "description": "A friendly and knowledgeable virtual fitness coach that creates simple, safe, and personalized workout and nutrition plans.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
