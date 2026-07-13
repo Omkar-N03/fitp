@@ -135,12 +135,30 @@ export default function App() {
         }),
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Failed to generate plan. Please try again.");
+      const responseText = await response.text();
+      let isJson = false;
+      let parsedData: any = null;
+      try {
+        parsedData = JSON.parse(responseText);
+        isJson = true;
+      } catch (e) {
+        isJson = false;
       }
 
-      const planData = await response.json();
+      if (!response.ok) {
+        const errMsg = isJson && parsedData?.error
+          ? parsedData.error
+          : responseText.includes("<html") || responseText.includes("<!DOCTYPE") || responseText.includes("The page could not")
+            ? "The GymCoach AI backend server is offline, starting up, or has timed out. Please ensure your GEMINI_API_KEY is configured in Settings > Secrets and try again."
+            : responseText || "Failed to generate plan. Please try again.";
+        throw new Error(errMsg);
+      }
+
+      if (!isJson) {
+        throw new Error("Received an unexpected non-JSON response from the server. The server might be starting up or has timed out.");
+      }
+
+      const planData = parsedData;
       setPlan({
         ...planData,
         generatedAt: new Date().toISOString()
