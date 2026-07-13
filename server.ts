@@ -11,27 +11,42 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini SDK server-side with your specific API key
-const apiKey = "AIzaSyCnNE47S6AqdyJFhDrTASIrK0Voadu_NOk";
-let ai: GoogleGenAI | null = null;
+// Initialize Gemini SDK with dynamic lookup and fallback keys
+let cachedAI: GoogleGenAI | null = null;
+let cachedKey: string | null = null;
 
-if (apiKey) {
-  ai = new GoogleGenAI({
-    apiKey: apiKey,
+function getAI(): GoogleGenAI {
+  const key = process.env.GEMINI_API_KEY 
+    || "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw" 
+    || "AQ.Ab8RN6KPaMtUDoTX_UjLUQucljEdqReQy_HtElfcmg8dtPjSqg";
+  
+  if (!key) {
+    throw new Error("GEMINI_API_KEY environment variable is required. Please add it to Settings > Secrets.");
+  }
+
+  if (cachedAI && cachedKey === key) {
+    return cachedAI;
+  }
+
+  cachedKey = key;
+  cachedAI = new GoogleGenAI({
+    apiKey: key,
     httpOptions: {
       headers: {
         "User-Agent": "aistudio-build",
       },
     },
   });
+  return cachedAI;
 }
 
 // REST API endpoint to generate workout and nutrition plans
 app.post("/api/coach/generate", async (req, res) => {
   try {
+    const ai = getAI();
     if (!ai) {
       return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured correctly.",
+        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured in Settings > Secrets.",
       });
     }
 
@@ -112,7 +127,7 @@ Output Schema Requirements:
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -176,9 +191,10 @@ Output Schema Requirements:
 // REST API endpoint for conversational interaction and dynamic plan updates
 app.post("/api/coach/chat", async (req, res) => {
   try {
+    const ai = getAI();
     if (!ai) {
       return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your API key configuration is sound.",
+        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured.",
       });
     }
 
@@ -233,7 +249,7 @@ Output Schema:
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
