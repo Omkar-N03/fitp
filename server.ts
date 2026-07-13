@@ -11,55 +11,45 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini SDK with dynamic lookup and robust fallback key rotation
-const getCandidateKeys = (): string[] => {
-  const keys: string[] = [];
-  if (process.env.GEMINI_API_KEY) {
-    keys.push(process.env.GEMINI_API_KEY.trim());
+// Initialize Gemini SDK
+function getAI(): GoogleGenAI {
+  const key = (process.env."AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw" || "").trim();
+  
+  if (!key) {
+    throw new Error("GEMINI_API_KEY is not configured. Please add it via Settings (gear icon) -> Secrets in the top-right corner of AI Studio, or paste it in the /.env file.");
   }
 
-  const userKey1 = "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw";
-  const userKey2 = "AQ.Ab8RN6KPaMtUDoTX_UjLUQucljEdqReQy_HtElfcmg8dtPjSqg";
+  // Basic sanity check to help users catch mismatched keys (e.g. Workspace tokens starting with AQ.Ab...)
+  if (!key.startsWith("AIzaSy")) {
+    throw new Error("The configured GEMINI_API_KEY appears invalid. Standard Google Gemini API keys always start with 'AIzaSy'. Please generate a valid key from: https://aistudio.google.com/app/apikey");
+  }
 
-  if (!keys.includes(userKey1)) keys.push(userKey1);
-  if (!keys.includes(userKey2)) keys.push(userKey2);
-
-  return keys;
-};
+  return new GoogleGenAI({
+    apiKey: key,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+}
 
 async function callGeminiWithFallback(options: {
   contents: string;
   config?: any;
 }) {
-  const keys = getCandidateKeys();
-  let lastError: any = null;
-
-  for (const key of keys) {
-    try {
-      const ai = new GoogleGenAI({
-        apiKey: key,
-        httpOptions: {
-          headers: {
-            "User-Agent": "aistudio-build",
-          },
-        },
-      });
-
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: options.contents,
-        config: options.config,
-      });
-
-      console.log(`Successfully generated content using Gemini key: ...${key.substring(Math.max(0, key.length - 8))}`);
-      return response;
-    } catch (error: any) {
-      console.warn(`Gemini call failed with key starting with "${key.substring(0, Math.min(8, key.length))}...":`, error.message || error);
-      lastError = error;
-    }
+  const ai = getAI();
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: options.contents,
+      config: options.config,
+    });
+    return response;
+  } catch (error: any) {
+    console.error("Gemini call failed:", error.message || error);
+    throw error;
   }
-
-  throw lastError || new Error("No valid Gemini API key found. Please check your keys or add one to Settings > Secrets.");
 }
 
 // REST API endpoint to generate workout and nutrition plans
