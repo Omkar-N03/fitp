@@ -11,45 +11,60 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini SDK with dynamic lookup and fallback keys
-let cachedAI: GoogleGenAI | null = null;
-let cachedKey: string | null = null;
-
-function getAI(): GoogleGenAI {
-  const key = process.env.GEMINI_API_KEY 
-    || "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw" 
-    || "AQ.Ab8RN6KPaMtUDoTX_UjLUQucljEdqReQy_HtElfcmg8dtPjSqg";
-  
-  if (!key) {
-    throw new Error("GEMINI_API_KEY environment variable is required. Please add it to Settings > Secrets.");
+// Initialize Gemini SDK with dynamic lookup and robust fallback key rotation
+const getCandidateKeys = (): string[] => {
+  const keys: string[] = [];
+  if (process.env.GEMINI_API_KEY) {
+    keys.push(process.env.GEMINI_API_KEY.trim());
   }
 
-  if (cachedAI && cachedKey === key) {
-    return cachedAI;
+  const userKey1 = "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw";
+  const userKey2 = "AQ.Ab8RN6KPaMtUDoTX_UjLUQucljEdqReQy_HtElfcmg8dtPjSqg";
+
+  if (!keys.includes(userKey1)) keys.push(userKey1);
+  if (!keys.includes(userKey2)) keys.push(userKey2);
+
+  return keys;
+};
+
+async function callGeminiWithFallback(options: {
+  contents: string;
+  config?: any;
+}) {
+  const keys = getCandidateKeys();
+  let lastError: any = null;
+
+  for (const key of keys) {
+    try {
+      const ai = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            "User-Agent": "aistudio-build",
+          },
+        },
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: options.contents,
+        config: options.config,
+      });
+
+      console.log(`Successfully generated content using Gemini key: ...${key.substring(Math.max(0, key.length - 8))}`);
+      return response;
+    } catch (error: any) {
+      console.warn(`Gemini call failed with key starting with "${key.substring(0, Math.min(8, key.length))}...":`, error.message || error);
+      lastError = error;
+    }
   }
 
-  cachedKey = key;
-  cachedAI = new GoogleGenAI({
-    apiKey: key,
-    httpOptions: {
-      headers: {
-        "User-Agent": "aistudio-build",
-      },
-    },
-  });
-  return cachedAI;
+  throw lastError || new Error("No valid Gemini API key found. Please check your keys or add one to Settings > Secrets.");
 }
 
 // REST API endpoint to generate workout and nutrition plans
 app.post("/api/coach/generate", async (req, res) => {
   try {
-    const ai = getAI();
-    if (!ai) {
-      return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured in Settings > Secrets.",
-      });
-    }
-
     const {
       age,
       gender,
@@ -126,8 +141,7 @@ Output Schema Requirements:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await callGeminiWithFallback({
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -191,13 +205,6 @@ Output Schema Requirements:
 // REST API endpoint for conversational interaction and dynamic plan updates
 app.post("/api/coach/chat", async (req, res) => {
   try {
-    const ai = getAI();
-    if (!ai) {
-      return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured.",
-      });
-    }
-
     const {
       message,
       profile,
@@ -248,8 +255,7 @@ Output Schema:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+    const response = await callGeminiWithFallback({
       contents: prompt,
       config: {
         responseMimeType: "application/json",
