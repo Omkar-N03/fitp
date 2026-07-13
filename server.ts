@@ -11,8 +11,8 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini SDK server-side
-const apiKey = process.env.GEMINI_API_KEY;
+// Initialize Gemini SDK server-side with your specific API key
+const apiKey = "AIzaSyCnNE47S6AqdyJFhDrTASIrK0Voadu_NOk";
 let ai: GoogleGenAI | null = null;
 
 if (apiKey) {
@@ -31,7 +31,7 @@ app.post("/api/coach/generate", async (req, res) => {
   try {
     if (!ai) {
       return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured in Settings > Secrets.",
+        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured correctly.",
       });
     }
 
@@ -178,7 +178,7 @@ app.post("/api/coach/chat", async (req, res) => {
   try {
     if (!ai) {
       return res.status(500).json({
-        error: "GymCoach AI is temporarily offline. Please ensure your GEMINI_API_KEY is configured.",
+        error: "GymCoach AI is temporarily offline. Please ensure your API key configuration is sound.",
       });
     }
 
