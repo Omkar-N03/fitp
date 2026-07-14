@@ -11,9 +11,8 @@ const PORT = 3000;
 
 app.use(express.json());
 
-// Initialize Gemini SDK
 function getAI(): GoogleGenAI {
-  const key = (process.env."AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw" || "").trim();
+  const key = (process.env."AIzaSyDacK3CXDZaHyfQM86SPomX7fPJfbwQkdM" || "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw").trim();
   
   if (!key) {
     throw new Error("GEMINI_API_KEY is not configured. Please add it via Settings (gear icon) -> Secrets in the top-right corner of AI Studio, or paste it in the /.env file.");
