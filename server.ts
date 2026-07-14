@@ -12,13 +12,14 @@ const PORT = 3000;
 app.use(express.json());
 
 function getAI(): GoogleGenAI {
-  const key = (process.env."AIzaSyDacK3CXDZaHyfQM86SPomX7fPJfbwQkdM" || "AQ.Ab8RN6JCBKpp-f491zsyD2MC6tiIQU4JQAv-LRtjfAW0vs4rKw").trim();
+  // Corrected: Safely access the environment variable
+  const key = (process.env."AIzaSyDacK3CXDZaHyfQM86SPomX7fPJfbwQkdM"  || "").trim();
   
   if (!key) {
     throw new Error("GEMINI_API_KEY is not configured. Please add it via Settings (gear icon) -> Secrets in the top-right corner of AI Studio, or paste it in the /.env file.");
   }
 
-  // Basic sanity check to help users catch mismatched keys (e.g. Workspace tokens starting with AQ.Ab...)
+  // Basic sanity check to help users catch mismatched keys
   if (!key.startsWith("AIzaSy")) {
     throw new Error("The configured GEMINI_API_KEY appears invalid. Standard Google Gemini API keys always start with 'AIzaSy'. Please generate a valid key from: https://aistudio.google.com/app/apikey");
   }
@@ -67,7 +68,6 @@ app.post("/api/coach/generate", async (req, res) => {
     } = req.body;
 
     // Server-side calculation of protein as a backup/reference
-    // Goal mapping: Muscle Gain (2.0), Weight Loss (1.6), Strength (1.8), General Fitness (1.5)
     let multiplier = 1.5;
     const gLower = goal ? goal.toLowerCase() : "";
     if (gLower.includes("loss") || gLower.includes("weight")) {
@@ -207,10 +207,10 @@ The user is viewing their personalized plan and has sent you an interactive mess
 
 Your objectives:
 1. Provide a knowledgeable, friendly, and motivating response to their message.
-2. If the user requests modifications (e.g., "replace Bench Press with pushups", "I want to switch from weight loss to muscle gain", "add an exercise for calves on legs day", "I have dumbbells only now", "can we make it a 3-day split?"), you must update the workout plan, nutrition, or profile variables accordingly in the JSON response.
+2. If the user requests modifications, you must update the workout plan, nutrition, or profile variables accordingly in the JSON response.
 3. Keep your direct reply concise, clear, and action-oriented. Use bullet points where appropriate.
 4. If they report a new injury, express concern, advise them to consult a medical professional, and modify their workout plan immediately to avoid using the injured area.
-5. If they ask a general question (e.g., "what is progressive overload?", "how much sleep do I need?"), answer it beautifully, and keep the existing plan intact.
+5. If they ask a general question, answer it beautifully, and keep the existing plan intact.
 
 Current User Profile:
 ${JSON.stringify(profile, null, 2)}
